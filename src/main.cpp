@@ -426,7 +426,7 @@ int main(int argc, char** argv) {
 
         std::vector<std::pair<int, Touch>> changes;
         for (const auto& [id, point] : active) {
-            if (!desired.contains(id)) changes.push_back({id, Touch{point, "up"}});
+            if (desired.find(id) == desired.end()) changes.push_back({id, Touch{point, "up"}});
         }
         for (const auto& [id, point] : desired) {
             auto old = active.find(id);
