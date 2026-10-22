@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -202,7 +203,7 @@ public:
         if (!WriteFile(stdin_, header, sizeof(header), &written, nullptr) || written != sizeof(header)) return false;
         if (!WriteFile(stdin_, payload.data(), static_cast<DWORD>(payload.size()), &written, nullptr) ||
             written != payload.size()) return false;
-        return FlushFileBuffers(stdin_) != 0;
+        return true;
     }
 
     void Stop() {
@@ -289,6 +290,14 @@ void ReleaseAll(Bridge& bridge, std::map<int, Point>& active) {
     active.clear();
 }
 
+BOOL WINAPI ConsoleControlHandler(DWORD eventType) {
+    if (eventType == CTRL_C_EVENT || eventType == CTRL_BREAK_EVENT || eventType == CTRL_CLOSE_EVENT || eventType == CTRL_SHUTDOWN_EVENT) {
+        gStop.store(true);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 void PrintUsage() {
     std::cout << "IMPCS2 - Switch 2 Pro to iPad touch adapter\n\n"
               << "Usage:\n"
@@ -323,6 +332,7 @@ std::string FindBridge(const std::string& requested) {
 }
 
 int main(int argc, char** argv) {
+    SetConsoleCtrlHandler(ConsoleControlHandler, TRUE);
     bool dryRun = false;
     std::string udid, bridgePath, profilePath = "config/cult-of-the-lamb.example.ini";
     int controllerIndex = 0;
@@ -430,7 +440,7 @@ int main(int argc, char** argv) {
         }
         for (const auto& [id, point] : desired) {
             auto old = active.find(id);
-            if (old == active.end()) changes.push_back({id, Touch{point, "down"}});
+            if (old == active.end()) changes.push_back({id, Touch{id == 0 ? profile.stickCenter : point, "down"}});
             else if (std::abs(old->second.x - point.x) > 0.001 || std::abs(old->second.y - point.y) > 0.001)
                 changes.push_back({id, Touch{point, "move"}});
         }
